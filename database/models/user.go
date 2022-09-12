@@ -19,11 +19,29 @@ type User struct {
 }
 
 type UserRepository interface {
-	GetUserByID(id uuid.UUID) (User, error)
+	GetUserByID(id string) (User, error)
 	GetUserByEmail(email string) (User, error)
-	CreateUser(user *User) (User, error)
-	UpdateUser(user *User) (User, error)
-	DeleteUser(id uuid.UUID) error
+	CreateUser(user *User) (*User, error)
+	UpdateUser(user *User) (*User, error)
+	DeleteUser(id string) error
+}
+
+func NewUser(name string, email string, password string, provider string) (*User, error) {
+	newUser := &User{
+		ID: uuid.New(),
+		Name: name,
+		Email: email,
+		Password: password,
+		Provider: provider,
+	}
+
+	err := newUser.HashPassword()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return newUser, nil
 }
 
 func (u *User) HashPassword() error {

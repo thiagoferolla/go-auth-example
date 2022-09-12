@@ -18,7 +18,11 @@ func GetConnectionString() string {
 }
 
 func Connect() (*sqlx.DB, error) {
+	var err error
+	
 	connectionString := GetConnectionString()
 
-	return sqlx.Connect("postgres", connectionString)
+	connection, err := sqlx.Connect("postgres", connectionString)
+
+	return connection, err
 }
