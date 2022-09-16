@@ -8,11 +8,12 @@ import (
 
 type AuthController struct {
 	UserRepository models.UserRepository
+	RefreshTokenRepository models.RefreshTokenRepository
 	JwtProvider    *jwt.JWTProvider
 }
 
-func NewAuthController(userRepository models.UserRepository, jwtProvider *jwt.JWTProvider) *AuthController {
-	return &AuthController{userRepository, jwtProvider}
+func NewAuthController(userRepository models.UserRepository, refreshTokenRepository models.RefreshTokenRepository,  jwtProvider *jwt.JWTProvider) *AuthController {
+	return &AuthController{userRepository, refreshTokenRepository, jwtProvider}
 }
 
 type CreateUserPayload struct {
@@ -26,6 +27,7 @@ type CreateUserResponse struct {
 	Email     string `json:"email"`
 	IsNewUser bool   `json:"is_new_user"`
 	IDToken   string `json:"id_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 func (controller AuthController) CreateUser(c *gin.Context) {
@@ -50,6 +52,14 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 		return
 	}
 
+	refreshToken := models.NewRefreshToken(user.ID)
+	_, err = controller.RefreshTokenRepository.CreateRefreshToken(refreshToken)
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
 	token, err := controller.JwtProvider.GenerateToken(*user)
 
 	if err != nil {
@@ -62,6 +72,7 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 		Email:     user.Email,
 		IsNewUser: true,
 		IDToken:   token,
+		RefreshToken: refreshToken.Token.String(),
 	}
 
 	c.JSON(201, response)
