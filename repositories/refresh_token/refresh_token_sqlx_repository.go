@@ -1,7 +1,10 @@
 package refreshtoken
 
 import (
+	"database/sql"
+
 	"github.com/jmoiron/sqlx"
+	"github.com/thiagoferolla/go-auth/database"
 	"github.com/thiagoferolla/go-auth/database/models"
 )
 
@@ -28,8 +31,10 @@ func (r RefreshTokenSqlxRepository) InvalidateToken(token string) error {
 	return row.Err()
 }
 
-func (r RefreshTokenSqlxRepository) CreateRefreshToken(refreshToken *models.RefreshToken) (*models.RefreshToken, error) {
-	err := r.Database.QueryRow("INSERT INTO refresh_tokens (token, owner, valid) VALUES ($1, $2, $3) RETURNING token, owner, valid, created_at, updated_at", refreshToken.Token, refreshToken.Owner, refreshToken.Valid).
+func (r RefreshTokenSqlxRepository) CreateRefreshToken(refreshToken *models.RefreshToken, transaction *sql.Tx) (*models.RefreshToken, error) {
+	client := database.ParseClient(r.Database, transaction)
+
+	err := client.QueryRow("INSERT INTO refresh_tokens (token, owner, valid) VALUES ($1, $2, $3) RETURNING token, owner, valid, created_at, updated_at", refreshToken.Token, refreshToken.Owner, refreshToken.Valid).
 		Scan(&refreshToken.Token, &refreshToken.Owner, &refreshToken.Valid, &refreshToken.CreatedAt, &refreshToken.UpdatedAt)
 
 	return refreshToken, err

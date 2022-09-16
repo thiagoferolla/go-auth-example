@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 
@@ -26,4 +27,17 @@ func Connect() (*sqlx.DB, error) {
 	connection, err := sqlx.Connect("pgx", connectionString)
 
 	return connection, err
+}
+
+type QueryClient interface {
+	QueryRow(query string, args ...any) *sql.Row
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
+func ParseClient(database *sqlx.DB, transaction *sql.Tx) QueryClient {
+	if transaction != nil {
+		return transaction
+	}
+
+	return database
 }

@@ -1,6 +1,9 @@
 package models
 
 import (
+	"database/sql"
+	"errors"
+	"net/mail"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,21 +24,38 @@ type User struct {
 }
 
 type UserRepository interface {
+	BeginTransaction() (*sql.Tx, error)
 	GetUserByID(id string) (User, error)
 	GetUserByEmail(email string) (User, error)
-	CreateUser(user *User) (*User, error)
-	UpdateUser(user *User) (*User, error)
-	DeleteUser(id string) error
+	CreateUser(user *User, transaction *sql.Tx) (*User, error)
+	UpdateUser(user *User, transaction *sql.Tx) (*User, error)
+	DeleteUser(id string, transaction *sql.Tx) error
+}
+
+func ValidateEmail(email string) bool {
+	_, err :=  mail.ParseAddress(email)
+
+	if err != nil {
+		return false
+	}
+
+	return true
 }
 
 func NewUser(name string, email string, password string, provider string) (*User, error) {
+	if len(password) <= 0 {
+		return nil, errors.New("password is required")
+	} else if !ValidateEmail(email) {
+		return nil, errors.New("invalid email")
+	}
+
 	newUser := &User{
 		ID:       uuid.New(),
 		Name:     null.NewString(name, len(name) > 0),
 		Email:    email,
 		Password: password,
 		Provider: provider,
-		Role: "user",
+		Role:     "user",
 	}
 
 	err := newUser.HashPassword()

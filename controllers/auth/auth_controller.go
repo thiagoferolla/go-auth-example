@@ -7,12 +7,12 @@ import (
 )
 
 type AuthController struct {
-	UserRepository models.UserRepository
+	UserRepository         models.UserRepository
 	RefreshTokenRepository models.RefreshTokenRepository
-	JwtProvider    *jwt.JWTProvider
+	JwtProvider            *jwt.JWTProvider
 }
 
-func NewAuthController(userRepository models.UserRepository, refreshTokenRepository models.RefreshTokenRepository,  jwtProvider *jwt.JWTProvider) *AuthController {
+func NewAuthController(userRepository models.UserRepository, refreshTokenRepository models.RefreshTokenRepository, jwtProvider *jwt.JWTProvider) *AuthController {
 	return &AuthController{userRepository, refreshTokenRepository, jwtProvider}
 }
 
@@ -23,10 +23,10 @@ type CreateUserPayload struct {
 }
 
 type CreateUserResponse struct {
-	ID        string `json:"id"`
-	Email     string `json:"email"`
-	IsNewUser bool   `json:"is_new_user"`
-	IDToken   string `json:"id_token"`
+	ID           string `json:"id"`
+	Email        string `json:"email"`
+	IsNewUser    bool   `json:"is_new_user"`
+	IDToken      string `json:"id_token"`
 	RefreshToken string `json:"refresh_token"`
 }
 
@@ -45,17 +45,26 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 		return
 	}
 
-	_, err = controller.UserRepository.CreateUser(user)
+	transaction, err := controller.UserRepository.BeginTransaction()
 
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	refreshToken := models.NewRefreshToken(user.ID)
-	_, err = controller.RefreshTokenRepository.CreateRefreshToken(refreshToken)
+	_, err = controller.UserRepository.CreateUser(user, transaction)
 
 	if err != nil {
+		transaction.Rollback()
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	refreshToken := models.NewRefreshToken(user.ID)
+	_, err = controller.RefreshTokenRepository.CreateRefreshToken(refreshToken, transaction)
+
+	if err != nil {
+		transaction.Rollback()
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -63,15 +72,24 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 	token, err := controller.JwtProvider.GenerateToken(*user)
 
 	if err != nil {
+		transaction.Rollback()
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = transaction.Commit()
+
+	if err != nil {
+		transaction.Rollback()
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
 	response := CreateUserResponse{
-		ID:        user.ID.String(),
-		Email:     user.Email,
-		IsNewUser: true,
-		IDToken:   token,
+		ID:           user.ID.String(),
+		Email:        user.Email,
+		IsNewUser:    true,
+		IDToken:      token,
 		RefreshToken: refreshToken.Token.String(),
 	}
 
