@@ -3,10 +3,11 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/thiagoferolla/go-auth/providers/jwt"
 )
 
 type Router struct {
-	Engine  *gin.Engine
+	Engine   *gin.Engine
 	Database *sqlx.DB
 }
 
@@ -19,5 +20,8 @@ func NewRouter(engine *gin.Engine, db *sqlx.DB) *Router {
 }
 
 func (r *Router) RegisterRoutes(server *gin.Engine) {
-	RegisterAuthRoutes(server, r.Database)
+
+	jwtProvider := jwt.NewProvider()
+
+	RegisterAuthRoutes(server, r.Database, jwtProvider)
 }

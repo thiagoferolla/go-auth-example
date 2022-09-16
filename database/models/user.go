@@ -5,17 +5,19 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/guregu/null.v4"
 )
 
 type User struct {
-	ID uuid.UUID `json:"id"`
-	Name string `json:"name"`
-	Email string `json:"email"`
-	Password string `json:"password"`
-	Provider string `json:"provider"`
-	EmailVerifiedAt time.Time `json:"email_verified_at"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID              uuid.UUID   `json:"id"`
+	Name            null.String `json:"name"`
+	Email           string      `json:"email"`
+	Password        string      `json:"-"`
+	Provider        string      `json:"provider"`
+	EmailVerifiedAt null.Time   `json:"email_verified_at"`
+	Role            string      `json:"role"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
 }
 
 type UserRepository interface {
@@ -28,11 +30,12 @@ type UserRepository interface {
 
 func NewUser(name string, email string, password string, provider string) (*User, error) {
 	newUser := &User{
-		ID: uuid.New(),
-		Name: name,
-		Email: email,
+		ID:       uuid.New(),
+		Name:     null.NewString(name, len(name) > 0),
+		Email:    email,
 		Password: password,
 		Provider: provider,
+		Role: "user",
 	}
 
 	err := newUser.HashPassword()
@@ -47,7 +50,7 @@ func NewUser(name string, email string, password string, provider string) (*User
 func (u *User) HashPassword() error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 
-	if err != nil { 
+	if err != nil {
 		return err
 	}
 

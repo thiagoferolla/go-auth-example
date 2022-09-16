@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	_ "github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -19,10 +20,10 @@ func GetConnectionString() string {
 
 func Connect() (*sqlx.DB, error) {
 	var err error
-	
+
 	connectionString := GetConnectionString()
 
-	connection, err := sqlx.Connect("postgres", connectionString)
+	connection, err := sqlx.Connect("pgx", connectionString)
 
 	return connection, err
 }
