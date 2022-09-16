@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
 	"github.com/thiagoferolla/go-auth/database/models"
 	"github.com/thiagoferolla/go-auth/providers/jwt"
@@ -22,7 +24,7 @@ type CreateUserPayload struct {
 	Password string `json:"password"`
 }
 
-type CreateUserResponse struct {
+type AuthResponse struct {
 	ID           string `json:"id"`
 	Email        string `json:"email"`
 	IsNewUser    bool   `json:"is_new_user"`
@@ -34,6 +36,7 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 	payload := CreateUserPayload{}
 
 	if err := c.ShouldBindJSON(&payload); err != nil {
+		log.Println(err)
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -41,6 +44,7 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 	user, err := models.NewUser(payload.Name, payload.Email, payload.Password, "password")
 
 	if err != nil {
+		log.Println(err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -48,6 +52,7 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 	transaction, err := controller.UserRepository.BeginTransaction()
 
 	if err != nil {
+		log.Println(err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -56,6 +61,7 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 
 	if err != nil {
 		transaction.Rollback()
+		log.Println(err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -65,6 +71,7 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 
 	if err != nil {
 		transaction.Rollback()
+		log.Println(err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -73,6 +80,7 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 
 	if err != nil {
 		transaction.Rollback()
+		log.Println(err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -81,11 +89,12 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 
 	if err != nil {
 		transaction.Rollback()
+		log.Println(err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response := CreateUserResponse{
+	response := AuthResponse{
 		ID:           user.ID.String(),
 		Email:        user.Email,
 		IsNewUser:    true,
@@ -97,3 +106,69 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 
 	return
 }
+
+type LoginPayload struct {
+	Email string 	`json:"email"`
+	Password string 	`json:"password"`
+}
+
+func (controller AuthController) Login(c *gin.Context) {
+	var payload LoginPayload
+
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		log.Println(err)
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(payload.Password) <= 0 || !models.ValidateEmail(payload.Email) {
+		c.JSON(400, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	user, err := controller.UserRepository.GetUserByEmail(payload.Email)
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(500, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	validPassword := user.VerifyPassword(payload.Password)
+
+	if !validPassword {
+		log.Println(err)
+		c.JSON(400, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	refreshToken := models.NewRefreshToken(user.ID)
+	_, err = controller.RefreshTokenRepository.CreateRefreshToken(refreshToken, nil)
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	token, err := controller.JwtProvider.GenerateToken(user)
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := AuthResponse{
+		ID:           user.ID.String(),
+		Email:        user.Email,
+		IsNewUser:    true,
+		IDToken:      token,
+		RefreshToken: refreshToken.Token.String(),
+	}
+
+	c.JSON(200, response)
+
+	return
+}
+

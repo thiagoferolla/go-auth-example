@@ -19,4 +19,5 @@ func RegisterAuthRoutes(server *gin.Engine, database *sqlx.DB, jwtProvider *jwt.
 	)
 
 	group.POST("/sign-in", authController.CreateUser)
+	group.POST("/login", authController.Login)
 }
