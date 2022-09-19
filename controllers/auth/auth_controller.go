@@ -291,3 +291,61 @@ func (controller AuthController) Logout(c *gin.Context) {
 
 	return
 }
+
+type SendPasswordResetPayload struct {
+	Email string `json:"email"`
+}
+
+func (controller AuthController) SendPasswordReset(c * gin.Context) {
+	var payload SendPasswordResetPayload
+
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		log.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !models.ValidateEmail(payload.Email) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email"})
+		return
+	}
+
+	user, err := controller.UserRepository.GetUserByEmail(payload.Email)
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid email"})
+		return
+	}
+
+	token, err := uuid.NewRandom()
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid email"})
+		return
+	}
+
+	err = controller.Cache.SetEx("password:"+token.String(), user.ID.String(), int(24*time.Hour))
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid email"})
+		return
+	}
+
+	err = controller.EmailProvider.SendEmail(
+		"no-reply@go-auth.com", user.Name.String, user.Email, os.Getenv("RESET_PASSWORD_TEMPLATE_ID"), map[string]string{"name": user.Name.String},
+	)	
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid email"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+	c.Abort()
+
+	return
+}

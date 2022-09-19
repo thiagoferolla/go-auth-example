@@ -26,6 +26,7 @@ func RegisterAuthRoutes(server *gin.Engine, database *sqlx.DB, jwtProvider jwt.J
 	group.POST("/sign_in", authController.CreateUser)
 	group.POST("/login", authController.Login)
 	group.POST("/refresh_token", authController.RefreshToken)
+	group.POST("/reset_password", authController.SendPasswordReset)
 
 	authMiddleware := auth_middleware.NewWithAuthMiddleware(user.NewUserSqlxRepository(database), jwtProvider)
 
