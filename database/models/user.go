@@ -33,7 +33,7 @@ type UserRepository interface {
 }
 
 func ValidateEmail(email string) bool {
-	_, err :=  mail.ParseAddress(email)
+	_, err := mail.ParseAddress(email)
 
 	if err != nil {
 		return false
