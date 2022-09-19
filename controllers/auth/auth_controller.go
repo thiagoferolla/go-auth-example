@@ -297,7 +297,7 @@ type SendPasswordResetPayload struct {
 	Email string `json:"email"`
 }
 
-func (controller AuthController) SendPasswordReset(c * gin.Context) {
+func (controller AuthController) SendPasswordReset(c *gin.Context) {
 	var payload SendPasswordResetPayload
 
 	if err := c.ShouldBindJSON(&payload); err != nil {
@@ -337,7 +337,7 @@ func (controller AuthController) SendPasswordReset(c * gin.Context) {
 
 	err = controller.EmailProvider.SendEmail(
 		"no-reply@go-auth.com", user.Name.String, user.Email, os.Getenv("RESET_PASSWORD_TEMPLATE_ID"), map[string]string{"name": user.Name.String},
-	)	
+	)
 
 	if err != nil {
 		log.Println(err)

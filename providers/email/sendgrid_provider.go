@@ -5,10 +5,6 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
-type EmailProvider interface {
-	SendEmail(from string, name string, to string, templateId string, substitutions map[string]string) error
-}
-
 type SendgridEmailProvider struct {
 	ApiKey string
 }

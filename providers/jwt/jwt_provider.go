@@ -4,26 +4,18 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/google/uuid"
 	"github.com/thiagoferolla/go-auth/database/models"
 )
 
-type JWTProvider struct {
+type JWTBaseProvider struct {
 	Secret []byte
 }
 
-func NewProvider() *JWTProvider {
-	return &JWTProvider{}
+func NewBaseProvider() *JWTBaseProvider {
+	return &JWTBaseProvider{}
 }
 
-type JwtClaims struct {
-	ID    uuid.UUID
-	Email string
-	Role  string
-	jwt.StandardClaims
-}
-
-func (provider JWTProvider) GenerateToken(user models.User) (string, error) {
+func (provider JWTBaseProvider) GenerateToken(user models.User) (string, error) {
 	expiration := time.Now().Add(time.Second * 3700)
 
 	claims := JwtClaims{
@@ -43,7 +35,7 @@ func (provider JWTProvider) GenerateToken(user models.User) (string, error) {
 	return signedToken, err
 }
 
-func (provider JWTProvider) ValidateToken(token string) (JwtClaims, error) {
+func (provider JWTBaseProvider) ValidateToken(token string) (JwtClaims, error) {
 	claims := &JwtClaims{}
 
 	t, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
