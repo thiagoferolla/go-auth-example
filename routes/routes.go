@@ -1,8 +1,12 @@
 package routes
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/thiagoferolla/go-auth/providers/cache"
+	"github.com/thiagoferolla/go-auth/providers/email"
 	"github.com/thiagoferolla/go-auth/providers/jwt"
 )
 
@@ -22,6 +26,8 @@ func NewRouter(engine *gin.Engine, db *sqlx.DB) *Router {
 func (r *Router) RegisterRoutes(server *gin.Engine) {
 
 	jwtProvider := jwt.NewProvider()
+	emailProvider := email.NewSendgridEmailProvider(os.Getenv("SENDGRID_API_KEY"))
+	cacheProvider := cache.NewRedisProvider()
 
-	RegisterAuthRoutes(server, r.Database, jwtProvider)
+	RegisterAuthRoutes(server, r.Database, *jwtProvider, emailProvider, cacheProvider)
 }

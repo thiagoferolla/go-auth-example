@@ -3,26 +3,28 @@ package auth
 import (
 	"log"
 	"net/http"
+	"os"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/thiagoferolla/go-auth/database/models"
+	"github.com/thiagoferolla/go-auth/providers/cache"
+	"github.com/thiagoferolla/go-auth/providers/email"
 	"github.com/thiagoferolla/go-auth/providers/jwt"
 )
 
 type AuthController struct {
 	UserRepository         models.UserRepository
 	RefreshTokenRepository models.RefreshTokenRepository
-	JwtProvider            *jwt.JWTProvider
+	JwtProvider            jwt.JWTProvider
+	EmailProvider          email.EmailProvider
+	Cache                  cache.CacheProvider
 }
 
-func NewAuthController(userRepository models.UserRepository, refreshTokenRepository models.RefreshTokenRepository, jwtProvider *jwt.JWTProvider) *AuthController {
-	return &AuthController{userRepository, refreshTokenRepository, jwtProvider}
-}
-
-type CreateUserPayload struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+func NewAuthController(userRepository models.UserRepository, refreshTokenRepository models.RefreshTokenRepository, jwtProvider jwt.JWTProvider, emailProvider email.EmailProvider, cache cache.CacheProvider) *AuthController {
+	return &AuthController{userRepository, refreshTokenRepository, jwtProvider, emailProvider, cache}
 }
 
 type AuthResponse struct {
@@ -31,6 +33,32 @@ type AuthResponse struct {
 	IsNewUser    bool   `json:"is_new_user"`
 	IDToken      string `json:"id_token"`
 	RefreshToken string `json:"refresh_token"`
+}
+
+func (controller AuthController) SendEmailConfirmation(userID string, email string, name string) error {
+	token, err := uuid.NewRandom()
+
+	if err != nil {
+		return err
+	}
+
+	err = controller.Cache.SetEx("email:"+token.String(), userID, int(24*time.Hour))
+
+	if err != nil {
+		return err
+	}
+
+	err = controller.EmailProvider.SendEmail(
+		"no-reply@go-auth.com", name, email, os.Getenv("CONFIRM_EMAIL_TEMPLATE_ID"), map[string]string{"name": name},
+	)
+
+	return err
+}
+
+type CreateUserPayload struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 func (controller AuthController) CreateUser(c *gin.Context) {
@@ -89,11 +117,18 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 	err = transaction.Commit()
 
 	if err != nil {
-		transaction.Rollback()
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		controller.SendEmailConfirmation(user.ID.String(), user.Email, user.Name.String)
+		wg.Done()
+	}()
 
 	response := AuthResponse{
 		ID:           user.ID.String(),
@@ -104,6 +139,8 @@ func (controller AuthController) CreateUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, response)
+
+	wg.Wait()
 
 	return
 }

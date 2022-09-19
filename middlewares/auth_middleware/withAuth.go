@@ -11,10 +11,10 @@ import (
 
 type WithAuthMiddleware struct {
 	UserRepository models.UserRepository
-	JwtProvider    *jwt.JWTProvider
+	JwtProvider    jwt.JWTProvider
 }
 
-func NewWithAuthMiddleware(userRepository models.UserRepository, jwtProvider *jwt.JWTProvider) *WithAuthMiddleware {
+func NewWithAuthMiddleware(userRepository models.UserRepository, jwtProvider jwt.JWTProvider) *WithAuthMiddleware {
 	return &WithAuthMiddleware{userRepository, jwtProvider}
 }
 
