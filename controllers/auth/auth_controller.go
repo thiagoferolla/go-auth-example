@@ -13,6 +13,7 @@ import (
 	"github.com/thiagoferolla/go-auth/providers/cache"
 	"github.com/thiagoferolla/go-auth/providers/email"
 	"github.com/thiagoferolla/go-auth/providers/jwt"
+	"gopkg.in/guregu/null.v4"
 )
 
 type AuthController struct {
@@ -341,6 +342,96 @@ func (controller AuthController) SendPasswordReset(c * gin.Context) {
 	if err != nil {
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid email"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+	c.Abort()
+
+	return
+}
+
+func (controller AuthController) ConfirmEmail(c *gin.Context) {
+	token := c.Query("token")
+
+	if len(token) <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	userID, err := controller.Cache.Get("email:" + token)
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token"})
+		return
+	} else if len(userID) <= 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+		return
+	}
+
+	user, err := controller.UserRepository.GetUserByID(userID)
+
+	user.EmailVerifiedAt = null.NewTime(time.Now(), true)
+
+	_, err = controller.UserRepository.UpdateUser(&user, nil)
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+	c.Abort()
+
+	return
+}
+
+type ResetPasswordPayload struct {
+	Password string `json:"password"`
+}
+
+func (controller AuthController) ResetPassword(c *gin.Context) {
+	token := c.Query("token")
+
+	if len(token) <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	var payload ResetPasswordPayload
+
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		log.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := controller.Cache.Get("password:" + token)
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	user, err := controller.UserRepository.GetUserByID(userID)
+
+	user.Password = payload.Password
+	err = user.HashPassword()
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	_, err = controller.UserRepository.UpdateUser(&user, nil)
+
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid token"})
 		return
 	}
 
