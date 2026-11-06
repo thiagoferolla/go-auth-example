@@ -11,8 +11,8 @@ type JWTBaseProvider struct {
 	Secret []byte
 }
 
-func NewBaseProvider() *JWTBaseProvider {
-	return &JWTBaseProvider{}
+func NewBaseProvider(secret []byte) *JWTBaseProvider {
+	return &JWTBaseProvider{Secret: secret}
 }
 
 func (provider JWTBaseProvider) GenerateToken(user models.User) (string, error) {

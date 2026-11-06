@@ -13,20 +13,19 @@ type Router struct {
 	Database *sqlx.DB
 }
 
-func NewRouter(engine *gin.Engine, db *sqlx.DB) *Router {
+func NewRouter(engine *gin.Engine, db *sqlx.DB, jwtProvider jwt.JWTProvider) *Router {
 	r := &Router{Engine: engine, Database: db}
 
-	r.RegisterRoutes(engine)
+	r.RegisterRoutes(engine, jwtProvider)
 
 	return r
 }
 
-func (r *Router) RegisterRoutes(server *gin.Engine) {
+func (r *Router) RegisterRoutes(server *gin.Engine, jwtProvider jwt.JWTProvider) {
 
-	jwtProvider := jwt.NewBaseProvider()
 	// emailProvider := email.NewSendgridEmailProvider(os.Getenv("SENDGRID_API_KEY"))
 	emailProvider := email.NewMockEmailProvider()
 	cacheProvider := cache.NewRedisProvider()
 
-	RegisterAuthRoutes(server, r.Database, *jwtProvider, emailProvider, cacheProvider)
+	RegisterAuthRoutes(server, r.Database, jwtProvider, emailProvider, cacheProvider)
 }
